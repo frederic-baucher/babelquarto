@@ -1,5 +1,14 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+# note about this fork
+
+The goal of this fork is an enhancement for displaying the tongue toggle button on the right.
+
+The current display (that will remain available in this fork) is as follow:
+![](https://i.imgur.com/7BLBTlc.png)
+
+Expected new option for the tongue toogle is as follow
+![](https://i.imgur.com/fWswrWF.png)
 
 # babelquarto
 
