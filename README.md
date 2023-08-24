@@ -5,10 +5,12 @@
 The goal of this fork is an enhancement for displaying the tongue toggle button on the right.
 
 The current display (that will remain available in this fork) is as follow:
-![](https://i.imgur.com/7BLBTlc.png)
+
+- ![](https://i.imgur.com/7BLBTlc.png)
 
 Expected new option for the tongue toogle is as follow
-![](https://i.imgur.com/dUFJkmf.png)
+
+- ![](https://i.imgur.com/dUFJkmf.png)
 
 # babelquarto
 
