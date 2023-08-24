@@ -8,7 +8,7 @@ The current display (that will remain available in this fork) is as follow:
 ![](https://i.imgur.com/7BLBTlc.png)
 
 Expected new option for the tongue toogle is as follow
-![](https://i.imgur.com/fWswrWF.png)
+![](https://i.imgur.com/dUFJkmf.png)
 
 # babelquarto
 
