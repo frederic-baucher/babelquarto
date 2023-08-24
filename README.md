@@ -2,7 +2,7 @@
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 # note about this fork
 
-The goal of this fork is an enhancement for displaying the tongue toggle button on the right.
+The goal of this fork is an enhancement for displaying with icon the tongue toggle button on the right and the current language on the left.
 
 The current display (that will remain available in this fork) is as follow:
 
