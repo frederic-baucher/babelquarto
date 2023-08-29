@@ -23,7 +23,8 @@ Imports:
     whoami,
     withr,
     xml2,
-    yaml
+    yaml,
+	logger
 Suggests: 
     servr,
     testthat (>= 3.0.0)

@@ -138,3 +138,41 @@ author-es: Yo misma
 ```
 
 If these fields do not exist, babelquarto falls back to their text in the main language.
+
+## Navigation bar customisation
+
+### Parameters
+Parameters in _quarto.yml (configuration file):
+- display-current-language
+  - none: the language of the current page is not displayed
+  - left: the language of the current page is displayed next to the title of the website
+- nav-style
+  - links: style of the initial version of babelquarto (link to the other language)
+  - dropdown: a menu list all the other languages
+
+### Examples
+
+#### Example 0: default ( none / links)
+
+```yml
+babelquarto:
+  mainlanguage: 'en'
+  languages: ['fr','de']
+  # display-current-language: none # [none], left
+  # nav-style: links # [links], dropdown
+```
+
+![](https://i.imgur.com/qyMNFuL.png)
+
+
+#### Example 1: left / dropdown
+
+```yml
+babelquarto:
+  mainlanguage: 'en'
+  languages: ['fr','de']
+  display-current-language: left # [none], left
+  nav-style: dropdown # [links], dropdown
+```
+
+![](https://i.imgur.com/qyMNFuL.png)

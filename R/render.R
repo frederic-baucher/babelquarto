@@ -82,6 +82,20 @@ render <- function(path = ".", site_url = NULL, type = c("book", "website")) {
   output_folder <- file.path(path, output_dir)
   if (fs::dir_exists(output_folder)) fs::dir_delete(output_folder)
 
+  # pre-defined style for language link / button
+  # edition: (XX edition)
+  # version: Version in XX (the default from PR 11 from maelle)
+  nav_style  <- config_contents[["babelquarto"]][["nav-style"]]
+  if (is.null(nav_style)) {
+    nav_style <- "links"
+  }    
+  
+  display_current_language <- config_contents[["babelquarto"]][["display-current-language"]]
+  if (is.null(display_current_language)) {
+    nav_style <- "none"
+  }    
+  
+ 
   # render book ----
   withr::with_dir(path, {
     quarto::quarto_render(as_job = FALSE)
@@ -105,7 +119,9 @@ render <- function(path = ".", site_url = NULL, type = c("book", "website")) {
       main_language = main_language,
       language_code = .x,
       site_url = site_url,
-      type = type
+      type = type,
+	  nav_style = nav_style,
+	  display_current_language = display_current_language
     )
   )
 
@@ -120,7 +136,9 @@ render <- function(path = ".", site_url = NULL, type = c("book", "website")) {
         main_language = main_language,
         language_code = .x,
         site_url = site_url,
-        type = type
+        type = type,
+	    nav_style = nav_style,		
+		display_current_language = display_current_language
         )
     )
   }
@@ -232,9 +250,87 @@ use_lang_chapter <- function(chapters_list, language_code, book_name, directory)
     chapters_list
 }
 
-add_link <- function(path, main_language = main_language, language_code, site_url, type) {
-  html <- xml2::read_html(path)
+add_current_language_indicator <- function(html, main_language = main_language, language_code, site_url, type, nav_style) {
 
+  # https://daroczig.github.io/logger/
+  logger::log_debug('add_current_language_indicator: begin - nav_style = {nav_style} / main_language = {main_language} / language_code = {language_code}')
+  
+    
+	  # <header id="quarto-header" class="headroom fixed-top"><nav class="navbar navbar-expand-lg navbar-dark "><div class="navbar-container container-fluid">
+      # <div class="navbar-brand-container">
+    # <a class="navbar-brand" href="./index.html">    <<<<<< navbar_brand
+    # <span class="navbar-title">babelsite local</span>
+    # </a>
+    # <span class="navbar-title">FR</span>	
+  # </div>
+	
+
+	language_indicator_exists <- (length(xml2::xml_find_first(html, "//span[@id='current-language']")) > 0)
+	
+	if ( !language_indicator_exists )
+	{
+		navbar_brand <- xml2::xml_find_first(html, "//a[@class='navbar-brand']")	
+		navbar_brand_length <- length(xml2::xml_find_first(html, "//a[@class='navbar-brand']"))
+		logger::log_debug('add_current_language_indicator: language_indicator_exists = {language_indicator_exists}')
+		
+		xml2::xml_add_sibling(
+			navbar_brand,
+			"span",
+			sprintf("[%s]", language_code),
+			class = "navbar-title",
+			id = "current-language",
+			# .where = 0
+			.where = "after"
+		  )	
+	}
+	else {
+		# logger::log_debug('language_indicator_exists is TRUE')
+	}
+	
+}
+  
+
+
+add_link <- function(path, main_language = main_language, language_code, site_url, type, nav_style, display_current_language) {
+
+  logger::log_debug('add_link: begin - main_language = {main_language} / language_code = {language_code} / path = {path} / display_current_language = { display_current_language } / nav_style = {nav_style}' )
+  
+  html <- xml2::read_html(path)
+  
+  # get the language of page from the page path
+  # ./docs/de/about.fr.html => fr  
+  # ./docs/fr/about.fr.html => fr
+  # ./docs/fr/index.html => en
+  # ./docs/index.fr.html => fr
+  # ./docs/index.html => en
+  
+  if ( display_current_language == "left" )
+  {
+	  total_length <- nchar (path)  
+	  sub_path <- sub("\\.[a-z][a-z]\\.html", "", path )
+		# ./docs/de/about.fr.html => ./docs/de/about 
+		# ./docs/index.html => ./docs/index.html
+	  partial_length <- nchar (sub_path)
+	  
+	  # when no language code in filename, partial_length == total_length
+	  if ( total_length == partial_length )
+	  {
+		# no language code on file => main_language
+		page_code <- main_language
+	  }
+	  else
+	  {
+		page_code <- substr ( path, partial_length + 2, partial_length + 3)
+	  }
+	  
+	  add_current_language_indicator(html, main_language, page_code, site_url, type, nav_style)
+  }
+  else
+  {
+	logger::log_debug('add_link: display_current_language = { display_current_language }' )
+  }
+  
+  
   if (language_code == main_language) {
     new_path <- sub("\\..*\\.html", ".html", basename(path))
     href <- sprintf("%s/%s", site_url, new_path)
@@ -244,6 +340,14 @@ add_link <- function(path, main_language = main_language, language_code, site_ur
     href <- sprintf("%s/%s/%s",site_url, language_code, new_path)
   }
 
+  
+  if ( nav_style == "dropdown" ) {
+	tongue_button <- sprintf("%s", toupper(language_code))  
+  } else {
+	tongue_button <- sprintf("Version in %s", toupper(language_code))
+  }
+  
+  
   if (type == "book") {
 
     left_sidebar <- xml2::xml_find_first(html, "//div[@class='sidebar-menu-container']")
@@ -268,10 +372,12 @@ add_link <- function(path, main_language = main_language, language_code, site_ur
 
     languages_links <- xml2::xml_find_first(html, "//ul[@id='language-links-ul']")
 
+
+
     xml2::xml_add_child(
       languages_links,
       "a",
-      sprintf("Version in %s", toupper(language_code)),
+      tongue_button,
       class = "toc-action",
       href = href,
       id = sprintf("language-link-%s", language_code)
@@ -284,17 +390,88 @@ add_link <- function(path, main_language = main_language, language_code, site_ur
     xml2::xml_add_child(just_added_link_item, "span", " ", .where = 0)
     xml2::xml_add_child(just_added_link_item, "i", class = "bi bi-globe2", .where = 0)
   } else {
-    navbar <- xml2::xml_find_first(html, "//div[@id='navbarCollapse']")
-    xml2::xml_add_child(
-      navbar,
-      "a",
-      style = "text-decoration: none; color:inherit;",
-      sprintf("Version in %s", toupper(language_code)),
-      class = "nav-item",
-      href = href,
-      id = sprintf("language-link-%s", language_code),
-      .where = 0
-    )
+    # type <> book (ie : website, ...)
+
+	
+	if ( nav_style == "dropdown" ) {
+		
+		# for links, buttons on the right side of navbar (before the search bar)
+		ul_navbar <- xml2::xml_find_first(html, "//ul[@class='navbar-nav navbar-nav-scroll ms-auto']")
+		
+		
+		# drop_menu_exists if this is the second call for the current language under treatment
+		drop_menu_exists <- (length(xml2::xml_find_first(html, "//li[@id='tongue_drop_menu']")) > 0)
+		
+		if (!drop_menu_exists )
+		{
+			# add drop menu that will allow switch between the different language 
+			tongue_drop_menu <- xml2::xml_add_child(ul_navbar, "li", id ="tongue_drop_menu", class="nav-item dropdown")
+			tongue_anchor <- xml2::xml_add_child(tongue_drop_menu, "a", id ="navbarDropdown", class="nav-link dropdown-toggle", `data-bs-toggle` = "dropdown", role="button", `aria-expanded`="false")
+			bi_globe <- xml2::xml_add_child(tongue_anchor, "i", "", class="bi bi-globe2")
+			tongue_ul <- xml2::xml_add_child(tongue_drop_menu, "ul", id ="tongue_ul", class="dropdown-menu", `aria-labelledby`="navbarDropdown")
+			# xml2::xml_add_child(bi_globe, "span", class="menu-text")		
+		}
+		else
+		{
+			tongue_ul <- xml2::xml_find_first(html, "//ul[@id='tongue_ul']")
+		}
+
+		
+	# <ul class="navbar-nav navbar-nav-scroll ms-auto">
+
+			# <li id="tongue_drop_menu" class="nav-item dropdown" >
+			  # <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+				# <i class="bi bi-globe2"></i>
+			  # </a>
+			  # <ul id="tongue_ul" class="dropdown-menu" aria-labelledby="navbarDropdown">
+				# <li id="language-link-li-fr" class="nav-item compact">
+				#	<a class="nav-link" href="http://127.0.0.1:4321/fr/index.fr.html" id="language-link-fr">
+				#		<span class="menu-text">FR</span>
+				#	</a>
+				# </li>
+				# <li id="language-link-li-de" class="nav-item compact"><a class="nav-link" href="http://127.0.0.1:4321/de/index.de.html" id="language-link-de"><span class="menu-text">DE</span></a></li>
+			  # </ul>
+			  
+			# </li>
+		
+		
+		
+		tongue_li <- xml2::xml_add_child(tongue_ul, "li", id = sprintf("language-link-li-%s", language_code), class="nav-item compact")
+		
+		tongue_link <- xml2::xml_add_child(
+		  tongue_li,
+		  "a",
+		  # style = "text-decoration: none; color:inherit;",
+		  id = sprintf("language-link-%s", language_code),	  
+		  class = "nav-link",
+		  href = href,
+		  .where = 0
+		)
+		
+		# simple, display code (no icon)
+		tongue_span <- xml2::xml_add_child(
+			tongue_link, 
+			"span",
+			language_code,
+			id = sprintf("language-span-%s", language_code),	  
+			class="menu-text"
+		)
+	  }
+	  else # nav_style = links
+	  {
+		logger::log_debug('add_link: nav_style = { nav_style }' )	  
+		navbar <- xml2::xml_find_first(html, "//div[@id='navbarCollapse']")
+		xml2::xml_add_child(
+		  navbar,
+		  "a",
+		  style = "text-decoration: none; color:inherit;",
+		  sprintf("Version in %s - ", toupper(language_code)),
+		  class = "nav-item",
+		  href = href,
+		  id = sprintf("language-link-%s", language_code),
+		  .where = 0
+		)		
+	  }
   }
 
   xml2::write_html(html, path)
