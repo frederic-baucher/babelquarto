@@ -368,13 +368,34 @@ add_link <- function(path, main_language = main_language, language_code, site_ur
 		logger::log_debug('add_link: display_current_language = { display_current_language }' )
 	  }
 	  
+
+	  rel_path <- sub(output_dir, "", path )
+	  logger::log_debug('add_link: rel_path(0) = {rel_path}')  
+	  if ( subdir != '/' ) {
+		rel_path <- sub(subdir, "", rel_path )
+		logger::log_debug('add_link: rel_path(1) = {rel_path}')  
+		rel_path <- sub(".///", "", rel_path )
+		logger::log_debug('add_link: rel_path(2) = {rel_path}')  
+	  }
+	  else
+	  {
+		rel_path <- sub(".//", "", rel_path )
+		logger::log_debug('add_link: rel_path(1) = {rel_path}')  		
+	  }
+	  # rel_path is
+	  # about.html
+	  # posts/2023-08-30-my-post.html
 	  
+
+	  # we are adding the link to language_code in the page rel_path
 	  if (language_code == main_language) {
-		new_path <- sub("\\..*\\.html", ".html", basename(path))
+		new_path <- sub("\\..*\\.html", ".html", rel_path)
 		href <- sprintf("%s/%s", site_url, new_path)
 	  } else {
-		base_path <- sub("\\..*\\.html", ".html", basename(path))
-		new_path <- fs::path_ext_set(base_path, sprintf(".%s.html", language_code))
+		rel_path_without_lg <- sub("\\..*\\.html", ".html", rel_path )
+		logger::log_debug('add_link: rel_path_without_lg(3) = {rel_path_without_lg}')  		
+		new_path <- fs::path_ext_set(rel_path_without_lg, sprintf(".%s.html", language_code))
+		logger::log_debug('add_link: new_path(3) = {new_path}')  		
 		href <- sprintf("%s/%s/%s",site_url, language_code, new_path)
 	  }
 
