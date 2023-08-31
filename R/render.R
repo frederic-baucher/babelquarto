@@ -256,6 +256,61 @@ use_lang_chapter <- function(chapters_list, language_code, book_name, directory)
     chapters_list
 }
 
+#' add an entry in the existing html node ( tongue_ul )
+
+add_dropdown_entry <- function(tongue_ul, subdir, language_code, main_language, href) {
+
+	logger::log_debug('add_dropdown_entry: begin - subdir = {subdir} / language_code = {language_code} / href = {href}')  
+			tongue_li <- xml2::xml_add_child(tongue_ul, "li", id = sprintf("language-link-li-%s", language_code), class="nav-item compact")
+			
+			tongue_link <- xml2::xml_add_child(
+			  tongue_li,
+			  "a",
+			  # style = "text-decoration: none; color:inherit;",
+			  id = sprintf("language-link-%s", language_code),	  
+			  class = "nav-link",
+			  href = href,
+			  .where = 0
+			)
+
+			
+			modified_page_language_code <- get_language_code ( subdir, main_language)
+			
+			
+			language_label <- language_code
+			
+			
+			# simple, display code (no icon)
+			if ( language_code == modified_page_language_code )
+			{
+				# the language must be underscored
+				tongue_span <- xml2::xml_add_child(
+					tongue_link, 
+					"span",
+					"",
+					id = sprintf("language-span-%s", language_code),	  
+					class="menu-text"
+				)
+				tongue_label <- xml2::xml_add_child(
+					tongue_span, 
+					"u",
+					language_label,
+					id = sprintf("language-u-%s", language_code)
+				)
+			}
+			else
+			{
+				tongue_span <- xml2::xml_add_child(
+					tongue_link, 
+					"span",
+					language_label,
+					id = sprintf("language-span-%s", language_code),	  
+					class="menu-text"
+				)
+			}
+			
+}
+
 add_current_language_indicator <- function(html, main_language = main_language, language_code, site_url, type, nav_style) {
 
   # https://daroczig.github.io/logger/
@@ -294,7 +349,67 @@ add_current_language_indicator <- function(html, main_language = main_language, 
 	}
 	
 }
-  
+
+#' give the link that has to be added to the current page %path% to point to corresponding page in the language %language_code%
+#' the link will be added in the language dropdown or language link (according to the 'babelquarto > nav-style' value in _quarto.yml)
+
+#' @param path : html filename to be modified (html file has been produced in output_dir by transforming the *.md or *.qmd file with quarto::render)
+#' @param subdir : language subdir where is stored the html page to be modified (/ if the file is a page in the main language)
+#' @param language_code : language of the translated corresponding page to be added to the page in treatment (given by %path%)
+
+#' @examples
+# 'http://127.0.0.1:4321/posts/2022-11-16-jekyll-localisation-date.html' <- get_corresponding_output_file ( './public/fr/posts/2022-11-16-jekyll-localisation-date.fr.html', 'fr', 'en')
+ 
+get_corresponding_href <- function( path, subdir, language_code, main_language, output_dir, site_url)
+{
+	logger::log_debug('get_corresponding_href: begin - path = {path}')  
+	################################### get_corresponding_href ###################################
+	  rel_path <- sub(output_dir, "", path )
+	  logger::log_debug('get_corresponding_href: rel_path(0) = {rel_path}')  
+	  if ( subdir != '/' ) {
+		rel_path <- sub(subdir, "", rel_path )
+		logger::log_debug('get_corresponding_href: rel_path(1) = {rel_path}')  
+		rel_path <- sub(".///", "", rel_path )
+		logger::log_debug('get_corresponding_href: rel_path(2) = {rel_path}')  
+	  }
+	  else
+	  {
+		rel_path <- sub(".//", "", rel_path )
+		logger::log_debug('get_corresponding_href: rel_path(1) = {rel_path}')  		
+	  }
+	  # rel_path is
+	  # about.html
+	  # posts/2023-08-30-my-post.html
+	  
+
+	  # we are adding the link to language_code in the page rel_path
+	  if (language_code == main_language) {
+		new_path <- sub("\\..*\\.html", ".html", rel_path)
+		href <- sprintf("%s/%s", site_url, new_path)
+	  } else {
+		rel_path_without_lg <- sub("\\..*\\.html", ".html", rel_path )
+		logger::log_debug('get_corresponding_href: rel_path_without_lg(3) = {rel_path_without_lg}')  		
+		new_path <- fs::path_ext_set(rel_path_without_lg, sprintf(".%s.html", language_code))
+		logger::log_debug('get_corresponding_href: new_path(3) = {new_path}')  		
+		href <- sprintf("%s/%s/%s",site_url, language_code, new_path)
+	  }
+	######################################################################
+	
+	logger::log_debug('get_corresponding_href: end - href = {href}')  
+	return ( href )
+}
+
+get_language_code <- function( subdir, main_language )
+{
+	  if ( subdir == '/' ) {
+		language_code <- main_language
+	  }
+	  else
+	  {
+		language_code <- subdir
+	  }	
+	return ( language_code ) 
+}
 
 # add_link adds link in the current page %path% to associated page in language %language_code% located in %subdir% of the %output_dir%
 # subdir / hosts pages for main language
@@ -342,7 +457,7 @@ add_link <- function(path, main_language = main_language, language_code, site_ur
 	  # ./docs/index.fr.html => fr
 	  # ./docs/index.html => en
 	  
-	  if ( display_current_language == "left" )
+	  if ( ( display_current_language == "left" ) | ( display_current_language == "left_and_dropdown" ) )
 	  {
 		  total_length <- nchar (path)  
 		  sub_path <- sub("\\.[a-z][a-z]\\.html", "", path )
@@ -368,37 +483,7 @@ add_link <- function(path, main_language = main_language, language_code, site_ur
 		logger::log_debug('add_link: display_current_language = { display_current_language }' )
 	  }
 	  
-
-	  rel_path <- sub(output_dir, "", path )
-	  logger::log_debug('add_link: rel_path(0) = {rel_path}')  
-	  if ( subdir != '/' ) {
-		rel_path <- sub(subdir, "", rel_path )
-		logger::log_debug('add_link: rel_path(1) = {rel_path}')  
-		rel_path <- sub(".///", "", rel_path )
-		logger::log_debug('add_link: rel_path(2) = {rel_path}')  
-	  }
-	  else
-	  {
-		rel_path <- sub(".//", "", rel_path )
-		logger::log_debug('add_link: rel_path(1) = {rel_path}')  		
-	  }
-	  # rel_path is
-	  # about.html
-	  # posts/2023-08-30-my-post.html
-	  
-
-	  # we are adding the link to language_code in the page rel_path
-	  if (language_code == main_language) {
-		new_path <- sub("\\..*\\.html", ".html", rel_path)
-		href <- sprintf("%s/%s", site_url, new_path)
-	  } else {
-		rel_path_without_lg <- sub("\\..*\\.html", ".html", rel_path )
-		logger::log_debug('add_link: rel_path_without_lg(3) = {rel_path_without_lg}')  		
-		new_path <- fs::path_ext_set(rel_path_without_lg, sprintf(".%s.html", language_code))
-		logger::log_debug('add_link: new_path(3) = {new_path}')  		
-		href <- sprintf("%s/%s/%s",site_url, language_code, new_path)
-	  }
-
+	  href <- get_corresponding_href( path, subdir, language_code, main_language, output_dir, site_url)
 	  
 	  if ( nav_style == "dropdown" ) {
 		tongue_button <- sprintf("%s", toupper(language_code))  
@@ -468,7 +553,18 @@ add_link <- function(path, main_language = main_language, language_code, site_ur
 				tongue_anchor <- xml2::xml_add_child(tongue_drop_menu, "a", id ="navbarDropdown", class="nav-link dropdown-toggle", `data-bs-toggle` = "dropdown", role="button", `aria-expanded`="false")
 				bi_globe <- xml2::xml_add_child(tongue_anchor, "i", "", class="bi bi-globe2")
 				tongue_ul <- xml2::xml_add_child(tongue_drop_menu, "ul", id ="tongue_ul", class="dropdown-menu", `aria-labelledby`="navbarDropdown")
-				# xml2::xml_add_child(bi_globe, "span", class="menu-text")		
+				# xml2::xml_add_child(bi_globe, "span", class="menu-text")
+				
+				
+				if ( ( display_current_language == "dropdown" ) | ( display_current_language == "left_and_dropdown" ) )
+				{
+					# display an entry with the current language in the language dropdown
+					# href
+					modified_page_language_code = get_language_code ( subdir, main_language )
+					add_dropdown_entry ( tongue_ul, subdir, language_code = modified_page_language_code, main_language, href = "#" )
+				}
+				
+				
 			}
 			else
 			{
@@ -494,27 +590,7 @@ add_link <- function(path, main_language = main_language, language_code, site_ur
 				# </li>
 			
 			
-			
-			tongue_li <- xml2::xml_add_child(tongue_ul, "li", id = sprintf("language-link-li-%s", language_code), class="nav-item compact")
-			
-			tongue_link <- xml2::xml_add_child(
-			  tongue_li,
-			  "a",
-			  # style = "text-decoration: none; color:inherit;",
-			  id = sprintf("language-link-%s", language_code),	  
-			  class = "nav-link",
-			  href = href,
-			  .where = 0
-			)
-			
-			# simple, display code (no icon)
-			tongue_span <- xml2::xml_add_child(
-				tongue_link, 
-				"span",
-				language_code,
-				id = sprintf("language-span-%s", language_code),	  
-				class="menu-text"
-			)
+				add_dropdown_entry ( tongue_ul, subdir, language_code, main_language, href )
 			
 			logger::log_debug('add_link: path = {path} / href = {href} / language_code = {language_code} /  nav_style = { nav_style }' )	  
 		  }
